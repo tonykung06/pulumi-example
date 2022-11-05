@@ -1,0 +1,3 @@
+name: pulumi-example-2-infrastructure
+description: A minimal Google Cloud C# Pulumi program
+runtime: dotnet
