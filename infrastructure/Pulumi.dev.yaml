@@ -1,2 +1,4 @@
 config:
+  gcp:credentials: C:\Users\User\Downloads\pulumi-trial-367514-ebb8cad53a65.json
   gcp:project: pulumi-trial-367514
+  pulumi-example-2-infrastructure:databaseTier: db-f1-micro

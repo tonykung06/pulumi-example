@@ -13,12 +13,14 @@ class Database
     public Output<string> DatabaseName { get; }
     public Database()
     {
+        var config = new Pulumi.Config();
         var dbServer = new DatabaseInstance("db-server", new DatabaseInstanceArgs
         {
             DatabaseVersion = "POSTGRES_13",
+            DeletionProtection = Deployment.Instance.StackName == "prod",
             Settings = new DatabaseInstanceSettingsArgs
             {
-                Tier = "db-f1-micro",
+                Tier = config.Require("databaseTier"), // config.Get("databaseTier") ?? "db-f1-micro"
                 IpConfiguration = new DatabaseInstanceSettingsIpConfigurationArgs
                 {
                     AuthorizedNetworks = new[] {

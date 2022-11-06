@@ -11,12 +11,18 @@ class DnsHosting
             BucketName = bucketName
         });
 
+        var stackName = Deployment.Instance.StackName;
+
+        var domainName = stackName == "prod" ?
+            "tonykung.club." :
+            $"{Deployment.Instance.StackName}.tonykung.club.";
+
         var cert = new ManagedSslCertificate("public-cert", new ManagedSslCertificateArgs
         {
             Managed = new ManagedSslCertificateManagedArgs
             {
                 Domains = {
-                    "dev.tonykung.club."
+                    domainName
                 }
             }
         });
@@ -47,7 +53,7 @@ class DnsHosting
                 forwardingRule.IpAddress
             },
             Type = "A",
-            Name = "dev.tonykung.club.",
+            Name = domainName,
             Ttl = 300,
         });
     }

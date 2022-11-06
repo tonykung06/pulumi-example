@@ -41,7 +41,7 @@ return await Deployment.RunAsync(() =>
         });
     }
 
-    var allowAllBinding = new BucketIAMBinding("allowAll", new BucketIAMBindingArgs
+    var allowAllBinding = new BucketIAMBinding($"allowAll", new BucketIAMBindingArgs
     {
         Bucket = bucket.Name,
         Role = "roles/storage.objectViewer",

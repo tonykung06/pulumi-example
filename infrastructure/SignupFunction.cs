@@ -1,5 +1,7 @@
 using System;
+using System.Globalization;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using Pulumi;
 using Pulumi.Gcp.CloudFunctions;
 using Pulumi.Gcp.Storage;
@@ -24,7 +26,7 @@ class SignupFunction
         });
         var serviceAccount = new Pulumi.Gcp.ServiceAccount.Account("handle-signup-account", new Pulumi.Gcp.ServiceAccount.AccountArgs
         {
-            AccountId = "handle-signup-account"
+            AccountId = $"handle-signup-account-{Deployment.Instance.StackName}"
         });
 
         // when cloud function code content is changed,
@@ -34,13 +36,13 @@ class SignupFunction
 
         var function = new Function("handle-signup", new FunctionArgs
         {
+            Name = sanitizedHash.Apply(hash => $"handle-signup-{Deployment.Instance.StackName}-{hash}"),
             EntryPoint = "handleSignup",
             SourceArchiveBucket = functionCodeBucket.Name,
             SourceArchiveObject = functionCodeObject.OutputName,
             Runtime = "nodejs10",
             Region = "us-central1",
             TriggerHttp = true,
-            Name = sanitizedHash.Apply(hash => $"handle-signup-{hash}"),
             ServiceAccountEmail = serviceAccount.Email,
             EnvironmentVariables = new InputMap<object>
             {
@@ -51,9 +53,8 @@ class SignupFunction
             }
         });
 
-        new FunctionIamBinding("allow-all", new FunctionIamBindingArgs
+        new FunctionIamBinding($"allow-all", new FunctionIamBindingArgs
         {
-
             Members = "allUsers",
             Role = "roles/cloudfunctions.invoker",
             CloudFunction = function.Name,
@@ -62,18 +63,32 @@ class SignupFunction
 
         var memberId = serviceAccount.Email.Apply(x => $"serviceAccount:{x}");
 
-        new FunctionIamBinding("service-agent", new FunctionIamBindingArgs
+        new FunctionIamBinding($"service-agent", new FunctionIamBindingArgs
         {
             Members = memberId,
             Role = "roles/cloudfunctions.serviceAgent",
             CloudFunction = function.Name,
-            Region = "us-central1",
-            Project = "pulumi-trial-367514"
+            Region = "us-central1"
         });
-        new Pulumi.Gcp.Projects.IAMBinding("service-agent-cloudsql-client", new Pulumi.Gcp.Projects.IAMBindingArgs
+
+        // Projects.IAMBinding is a stateful object in which the members could be changed by another stack/env
+        // this is a per role setting in a project
+        // so create a custom role for every stack
+        var myCustomRoleCloudSqlClient = new Pulumi.Gcp.Projects.IAMCustomRole($"cloudsql-client-{Deployment.Instance.StackName}", new()
+        {
+            Description = "Cloudsql Client for pulumi stack",
+            Permissions = new[]
+            {
+                "cloudsql.instances.connect",
+                "cloudsql.instances.get"
+            },
+            RoleId = $"cloudsqlClient{CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Deployment.Instance.StackName)}",
+            Title = $"cloudsql-client-{Deployment.Instance.StackName}",
+        });
+        new Pulumi.Gcp.Projects.IAMBinding($"service-agent-cloudsql-client", new Pulumi.Gcp.Projects.IAMBindingArgs
         {
             Members = memberId,
-            Role = "roles/cloudsql.client",
+            Role = myCustomRoleCloudSqlClient.Id,
             Project = "pulumi-trial-367514"
         });
         FunctionUrl = function.HttpsTriggerUrl;
